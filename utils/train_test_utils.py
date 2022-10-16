@@ -18,6 +18,13 @@ from datetime import datetime
 import os, copy, torch,time
 
 
+MODEL_CONFIGS_LINKS = {'HJDataset': 'https://www.dropbox.com/s/j4yseny2u0hn22r/config.yml?dl=1', 
+                'MFD': 'https://www.dropbox.com/s/ld9izb95f19369w/config.yaml?dl=1',
+                'NewspaperNavigator': 'https://www.dropbox.com/s/wnido8pk4oubyzr/config.yml?dl=1', 
+                'PubLayNet': 'https://www.dropbox.com/s/f3b12qc4hc0yh4m/config.yml?dl=1', 
+                 'TableBank': 'https://www.dropbox.com/s/7cqle02do7ah7k4/config.yaml?dl=1'}
+
+
 class LossEvalHook(HookBase):
     def __init__(self, eval_period, model, data_loader):
         self._model = model
@@ -134,17 +141,32 @@ class AugTrainer(DefaultTrainer): # Trainer with augmentations
         return hooks
 
 
-def build_modify_config(config_path:str, Data_Resister_training:str, Data_Resister_valid:str):
+def download_config(url, name):
+    import subprocess
+    name = f"./{name}_config.yml"
+    subprocess.Popen(f"""wget -qq -O {name} {url}""", shell=True)
+    time.sleep(3)
+    return name
+
+
+
+def build_layoutParser_faster_rcnnn_config(pretrained_model_name:str, Data_Resister_training:str, Data_Resister_valid:str):
     '''
-    Build and Modify the parameters for the config using this code
+    Build and Modify the parameters for the config from the Layout Parser models
     args:
-        config_path: Path to config file
+        pretrained_model_name: Name of the pretrained model from Layout Parser whose config you want to use ['HJDataset', 'MFD', 'NewspaperNavigator', 'PubLayNet', 'TableBank']
     '''
+    assert pretrained_model_name in ['HJDataset', 'MFD', 'NewspaperNavigator', 'PubLayNet', 'TableBank'], "'pretrained_weights' must be one of ['HJDataset', 'MFD', 'NewspaperNavigator', 'PubLayNet', 'TableBank']"
     
+    config_name = download_config(MODEL_CONFIGS_LINKS[pretrained_model_name], pretrained_model_name)
+
     cfg = get_cfg()
+
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 
-    cfg.merge_from_file(config_path)
+    cfg.merge_from_file(config_name)
+
+    cfg.MODEL.DEVICE = "cpu" if not torch.cuda.is_available() else "cuda"
 
     # cfg.CUDNN_BENCHMARK = True #  Default False
     cfg.DATALOADER.NUM_WORKERS: 2
