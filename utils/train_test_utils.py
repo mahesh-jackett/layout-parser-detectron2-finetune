@@ -12,10 +12,9 @@ from detectron2.data import detection_utils
 import detectron2.data.transforms as T
 from detectron2.evaluation import COCOEvaluator
 
-
 import numpy as np
-from datetime import datetime
 import os, copy, torch,time
+from datetime import timedelta
 
 
 MODEL_CONFIGS_LINKS = {'HJDataset': 'https://www.dropbox.com/s/j4yseny2u0hn22r/config.yml?dl=1', 
@@ -51,7 +50,7 @@ class LossEvalHook(HookBase):
             seconds_per_img = total_compute_time / iters_after_start
             if idx >= num_warmup * 2 or seconds_per_img > 5:
                 total_seconds_per_img = (time.perf_counter() - start_time) / iters_after_start
-                eta = datetime.timedelta(seconds=int(total_seconds_per_img * (total - idx - 1)))
+                eta = timedelta(seconds=int(total_seconds_per_img * (total - idx - 1)))
                 
                 # log_every_n_seconds(
                 #     logging.INFO,
@@ -88,8 +87,6 @@ class LossEvalHook(HookBase):
         if is_final or (self._period > 0 and next_iter % self._period == 0):
             self._do_loss_eval()
         self.trainer.storage.put_scalars(timetest=12)
-
-
 
 
 def custom_mapper(dataset_dict, transform_list = None):
