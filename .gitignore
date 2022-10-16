@@ -1,3 +1,22 @@
+# model weights, numpy packages, XML annotations, csv files
+*.npy
+*.pt
+*.pth
+
+*.PNG
+*.png
+*.JPEG
+*.JPG
+*.jpg
+*.jpeg
+
+*.csv
+*.xml
+
+# Jupyter Lab files
+.ipynb_checkpoints/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
