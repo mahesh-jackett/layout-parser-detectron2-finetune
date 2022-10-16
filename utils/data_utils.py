@@ -1,4 +1,4 @@
-import json
+import json, gdown
 from detectron2.structures import BoxMode
 from sklearn.model_selection import train_test_split
 from detectron2.data import DatasetCatalog, MetadataCatalog
