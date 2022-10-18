@@ -99,13 +99,13 @@ class LossEvalHook(HookBase):
 
 def custom_mapper(dataset_dict):
 
-    transform_list = KRandomAugmentationList([
+    transform_list = [KRandomAugmentationList([
         CustomAug(random_shadow, prob = 0.33),
         KRandomAugmentationList([CustomAug(channel_shuffle, prob = 0.9),CustomAug(rgb_shift, prob = 0.9), CustomAug(invert.apply, prob = 0.3)], k = 1),
         KRandomAugmentationList([CustomAug(random_gamma, prob = 0.5), T.RandomBrightness(0.4,1.4),T.RandomSaturation(0.4,1.4), T.RandomContrast(0.4,1.4)],k = -1),
         KRandomAugmentationList([CustomAug(random_noise, prob=0.75), CustomAug(blur.add_blur, prob=0.75), CustomAug(fog.apply, prob=0.75)], k = 1),
         KRandomAugmentationList([CustomAug(F_.to_gray, prob = 0.75), CustomAug(to_sepia.apply, prob = 0.7), CustomAug(fancy_pca, prob=0.7), CustomAug(equalize_image.apply, prob = 0.4)], k = 1),
-        ],k = -1)
+        ],k = -1),]
                       
     dataset_dict = copy.deepcopy(dataset_dict)
     image = detection_utils.read_image(dataset_dict["file_name"], format="BGR")
