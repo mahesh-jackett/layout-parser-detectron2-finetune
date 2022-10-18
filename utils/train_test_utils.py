@@ -16,6 +16,14 @@ import numpy as np
 import os, copy, torch,time
 from datetime import timedelta
 
+from .custom_augs import *
+
+blur = BLUR(5)
+fog = RandomFog(p = 1)
+equalize_image = Equalize(p = 1)
+to_sepia = ToSepia(p = 1)
+invert = InvertImg(p = 1)
+
 
 MODEL_CONFIGS_LINKS = {'HJDataset': 'https://www.dropbox.com/s/j4yseny2u0hn22r/config.yml?dl=1', 
                 'MFD': 'https://www.dropbox.com/s/ld9izb95f19369w/config.yaml?dl=1',
@@ -89,13 +97,15 @@ class LossEvalHook(HookBase):
         self.trainer.storage.put_scalars(timetest=12)
 
 
-def custom_mapper(dataset_dict, transform_list = None):
-    
-    if transform_list is None:
-      transform_list = [T.RandomBrightness(0.8, 1.2),
-                      T.RandomContrast(0.8, 1.2),
-                      T.RandomSaturation(0.8, 1.2),
-                      ]
+def custom_mapper(dataset_dict):
+
+    transform_list = KRandomAugmentationList([
+        CustomAug(random_shadow, prob = 0.33),
+        KRandomAugmentationList([CustomAug(channel_shuffle, prob = 0.9),CustomAug(rgb_shift, prob = 0.9), CustomAug(invert.apply, prob = 0.3)], k = 1),
+        KRandomAugmentationList([CustomAug(random_gamma, prob = 0.5), T.RandomBrightness(0.4,1.4),T.RandomSaturation(0.4,1.4), T.RandomContrast(0.4,1.4)],k = -1),
+        KRandomAugmentationList([CustomAug(random_noise, prob=0.75), CustomAug(blur.add_blur, prob=0.75), CustomAug(fog.apply, prob=0.75)], k = 1),
+        KRandomAugmentationList([CustomAug(F_.to_gray, prob = 0.75), CustomAug(to_sepia.apply, prob = 0.7), CustomAug(fancy_pca, prob=0.7), CustomAug(equalize_image.apply, prob = 0.4)], k = 1),
+        ],k = -1)
                       
     dataset_dict = copy.deepcopy(dataset_dict)
     image = detection_utils.read_image(dataset_dict["file_name"], format="BGR")
@@ -114,9 +124,10 @@ def custom_mapper(dataset_dict, transform_list = None):
 
 
 class AugTrainer(DefaultTrainer): # Trainer with augmentations
+
     @classmethod
     def build_train_loader(cls, cfg):
-        return build_detection_train_loader(cfg, mapper=custom_mapper)
+        return build_detection_train_loader(cfg, mapper = custom_mapper)
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):

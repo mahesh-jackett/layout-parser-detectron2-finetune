@@ -1,9 +1,82 @@
 from detectron2.data.transforms import Transform, TransformList, NoOpTransform, Augmentation
+from albumentations.augmentations.transforms import F as F_
+from albumentations.augmentations.transforms import RandomFog, Equalize, ToSepia, InvertImg, RandomShadow
+from skimage.util import random_noise as skimage_random_noise
 import numpy as np
 from typing import Callable
-import skimage
 import random
 import cv2
+
+
+shadow = RandomShadow((0,0,1,1), 1, 2, 5, p = 1)
+
+def channel_shuffle(img):
+    x = tuple(np.random.randint(0,3,3))
+    return F_.channel_shuffle(img, x)
+
+def rgb_shift(image):
+    r = random.uniform(-30 , 30)
+    g = random.uniform(-30 , 30)
+    b = random.uniform(-30 , 30)
+    return F_.shift_rgb(image, r, g, b)
+    
+def fancy_pca(img):
+    res = F_.fancy_pca(img, random.gauss(0, 0.9))
+    return res
+
+def random_gamma(img):
+    gamma = random.uniform(40, 160) / 100.0
+    return F_.gamma_transform(img, gamma=gamma)
+
+
+def random_noise(img):
+    mode = random.choice(["gaussian","localvar","poisson","pepper","s&p","speckle"])
+    res = skimage_random_noise(img, mode=mode)*255
+    return res.astype(np.uint8)
+
+
+def random_shadow(img):
+    try:
+        return shadow(image = img)["image"]
+    except:
+        return img
+
+
+class BLUR:
+    def __init__(self, kernel_size:int = 5):
+        self.kernel_size = kernel_size
+
+        self.kernel_h = np.zeros((kernel_size, kernel_size))  # horizontal kernel
+        self.kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size) 
+        self.kernel_h /= kernel_size 
+
+        self.kernel_v = np.zeros((kernel_size, kernel_size)) # vertical kernel
+        self.kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size) 
+        self.kernel_v /= kernel_size  # Normalize. 
+
+    
+    def add_blur(self, img:np.ndarray) -> np.ndarray:
+        '''
+        Method to add different type of blurs to an image
+        args:
+            img: Path or the numpy array of image
+            kernel_size: Size of the kernel to convolve. Directly dependent on the strength of the blur
+            kind: Type of blurring to use. Can be any from ['horizontal_motion','motion_v','average','gauss','median']
+        '''
+        kind = random.choice(['motion_h','motion_v','average','gauss','median'])
+        
+        if kind == 'motion_h':
+            return cv2.filter2D(img, -1, self.kernel_h) 
+    
+        elif kind == 'motion_v':
+            return cv2.filter2D(img, -1, self.kernel_v)
+        
+        elif kind == 'average': return cv2.blur(img,(self.kernel_size,self.kernel_size)) # Works like PIL BoxBlur
+    
+        elif kind == 'gauss': return cv2.GaussianBlur(img, (self.kernel_size,self.kernel_size),0)  
+        
+        elif kind == 'median': return cv2.medianBlur(img,self.kernel_size) 
+
 
 class _TransformToAug(Augmentation):
     def __init__(self, tfm: Transform):
@@ -67,7 +140,6 @@ class KRandomAugmentationList(Augmentation):
         tfms = []
 
         for x in self._setup_augs(self.augs, self.k): # generate auguments to use randomly on the fly
-            print(x)
             tfm = x(aug_input)
             tfms.append(tfm)
         return TransformList(tfms)
@@ -142,38 +214,3 @@ class CustomAug(Augmentation):
         else:
             return NoOpTransform() # it returns a Transform which just returns the original Image array only
 
-
-class BLUR:
-    def __init__(self, kernel_size:int = 5):
-        self.kernel_size = kernel_size
-
-        self.kernel_h = np.zeros((kernel_size, kernel_size))  # horizontal kernel
-        self.kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size) 
-        self.kernel_h /= kernel_size 
-
-        self.kernel_v = np.zeros((kernel_size, kernel_size)) # vertical kernel
-        self.kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size) 
-        self.kernel_v /= kernel_size  # Normalize. 
-
-
-    def add_blur(self, img:np.ndarray)->np.ndarray:
-        '''
-        Method to add different type of blurs to an image
-        args:
-            img: Path or the numpy array of image
-            kernel_size: Size of the kernel to convolve. Directly dependent on the strength of the blur
-            kind: Type of blurring to use. Can be any from ['horizontal_motion','motion_v','average','gauss','median']
-        '''
-        kind = random.choice(['motion_h','motion_v','average','gauss','median'])
-        
-        if kind == 'motion_h':
-            return cv2.filter2D(img, -1, self.kernel_h) 
-    
-        elif kind == 'motion_v':
-            return cv2.filter2D(img, -1, self.kernel_v)
-        
-        elif kind == 'average': return cv2.blur(img,(self.kernel_size,self.kernel_size)) # Works like PIL BoxBlur
-    
-        elif kind == 'gauss': return cv2.GaussianBlur(img, (self.kernel_size,self.kernel_size),0)  
-        
-        elif kind == 'median': return cv2.medianBlur(img,self.kernel_size) 
